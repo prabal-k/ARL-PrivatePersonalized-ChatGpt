@@ -1,0 +1,8 @@
+langchain
+langchain-community
+sentence-transformers
+ctransformers
+pymysql
+sqlalchemy
+langchain_experimental
+chromadb
