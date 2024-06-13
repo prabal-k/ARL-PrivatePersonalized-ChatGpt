@@ -6,3 +6,5 @@ pymysql
 sqlalchemy
 langchain_experimental
 chromadb
+spacy
+python -m spacy download en_core_web_sm
