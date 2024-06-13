@@ -218,8 +218,18 @@ AND Date >= DATE_SUB(CURDATE(), INTERVAL 2 YEAR);
 
 
 
+SELECT DATE(Value_date) AS Date, SUM(Withdrawal_amount) AS Total_Spending 
+FROM transactions 
+WHERE Account_No = "409000493201'"
+AND Value_date >= DATE_SUB(CURDATE(), INTERVAL 1 WEEK) 
+GROUP BY DATE(Value_date);
 
 
+
+
+SELECT DATE(Value_date) AS Date, SUM(Withdrawal_amount) AS Total_Spending 
+FROM transactions WHERE Account_No = "409000493201'" AND Value_date >= DATE_SUB(CURDATE(), INTERVAL 1 WEEK)
+GROUP BY DATE(Value_date);
 
 
 
