@@ -8,3 +8,6 @@ langchain_experimental
 chromadb
 spacy
 python -m spacy download en_core_web_sm
+alt-profanity-check
+guardrails-ai
+guardrails hub install hub://guardrails/profanity_free
