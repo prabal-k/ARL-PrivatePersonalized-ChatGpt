@@ -9,7 +9,6 @@ SELECT SUM(Withdrawal_amount) AS Total_Expenses FROM transactions WHERE
 Account_No = "409000611074'" AND Value_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 8 MONTH);
 
 
-
 -- Question 3) How much did I save last month as my account number 409000493201' 
 SELECT (SUM(Deposit_amount) - SUM(Withdrawal_amount)) AS Savings_Last_Month FROM 
 transactions WHERE Account_No = "409000493201'" AND YEAR(Value_date) = YEAR(CURRENT_DATE() 
@@ -230,6 +229,85 @@ GROUP BY DATE(Value_date);
 SELECT DATE(Value_date) AS Date, SUM(Withdrawal_amount) AS Total_Spending 
 FROM transactions WHERE Account_No = "409000493201'" AND Value_date >= DATE_SUB(CURDATE(), INTERVAL 1 WEEK)
 GROUP BY DATE(Value_date);
+
+
+SELECT SUM(Withdrawal_amount) AS Total_Spending FROM transactions WHERE Account_No = "409000493201'" AND Value_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH);
+
+
+
+SELECT YEAR(Value_date) AS Year, SUM(Deposit_amount) - SUM(Withdrawal_amount) AS Savings
+FROM transactions
+WHERE Account_No = "409000493201'"
+  AND YEAR(Value_date) = YEAR(CURDATE())
+GROUP BY YEAR(Value_date);
+
+
+SELECT YEAR(Value_date) AS Year, SUM(Value_date) AS Total_Spending FROM transactions WHERE Account_No = "409000493201'" AND 
+Date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 YEAR)
+GROUP BY YEAR(Value_date);
+
+
+SELECT SUM(Withdrawal_amount) AS Total_Spending 
+FROM transactions 
+WHERE Account_No = "409000493201'"
+AND YEAR(Value_date) = YEAR(CURDATE());
+
+SELECT SUM(Deposit_amount) - SUM(Withdrawal_amount) AS Savings
+FROM transactions WHERE Account_No = "409000493201'" AND year(Value_date) = year(curdate());
+
+SELECT year(Value_date) as year,sum(Withdrawal_amount) AS Total_Expenses FROM transactions WHERE 
+Account_No = "409000493201'" AND year(Value_date) = year(curdate())
+group by year(Value_date);
+
+
+
+
+SELECT SUM(Withdrawal_amount) AS Total_Expenses FROM transactions WHERE
+Account_No = "409000493201'" AND Value_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 YEAR);
+
+
+
+SELECT Year(Value_date), SUM(Deposit_amount) AS Savings, MONTH(Value_date) AS Month
+FROM transactions WHERE Account_No = "409000493201'" 
+AND YEAR(Value_date) = YEAR(CURRENT_DATE() - INTERVAL 1 YEAR) GROUP BY Year(Value_date)
+, MONTH(Value_date);
+
+ -- Question 13) amount saved each month this year as my account number is 409000493201'    
+
+SELECT 
+    YEAR(Value_date) AS Year, 
+    MONTH(Value_date) AS Month, 
+    SUM(Deposit_amount) - SUM(Withdrawal_amount) AS Savings 
+FROM transactions 
+WHERE 
+    Account_No = "409000493201'"
+    AND YEAR(Value_date) = YEAR(CURRENT_DATE()) 
+GROUP BY 
+    YEAR(Value_date), 
+    MONTH(Value_date);
+    
+    
+ -- Question 13) amount saved each month previous year as my account number is 409000493201'    
+SELECT 
+    YEAR(Value_date) AS Year, 
+    MONTH(Value_date) AS Month, 
+    SUM(Deposit_amount) - SUM(Withdrawal_amount) AS Savings 
+FROM transactions 
+WHERE 
+    Account_No = "409000493201'"
+    AND YEAR(Value_date) = YEAR(CURRENT_DATE - INTERVAL 1 YEAR)
+GROUP BY 
+    YEAR(Value_date), 
+    MONTH(Value_date);
+
+
+
+SELECT sum(Withdrawal_amount) AS Total_Expenses FROM transactions WHERE 
+Account_No = "409000493201'" AND year(Value_date) = year(curdate())
+group by year(Value_date);
+
+
+
 
 
 
