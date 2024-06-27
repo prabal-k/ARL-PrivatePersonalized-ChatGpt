@@ -1,0 +1,41 @@
+[
+    {
+        "text": "<s>[INST]  Income of last 3 months.My Account Number is 409000493201'. ? [/INST] 16725509 is the income of last 3 months. </s>"
+    },
+    {
+        "text": "<s>[INST] Total expenses/spendings of last 8 months for account number 409000611074' ? [/INST] 75124046 is the total expenses of last 8 months. </s>"
+    },
+    {
+        "text": "<s>[INST] How many transactions did I make in last 2 week as my account number is 409000493201'  [/INST] You made 24 transactions in last 2 week. </s>"
+    },
+    {
+        "text": "<s>[INST] Amount spent last week as my account number is 409000493201'  [/INST] 515559 is your total spending last week. </s>"
+    },
+    {
+        "text": "<s>[INST] Expenses for each day this month as my account number is  409000493201' ? [/INST] The total_expenses is 183648,80666,135504,92031,118475,16440,62112,10331 for the year 2024 month of 6 and date 02,03,04,05,06,07,09 and 10.   </s>"
+    },
+    {
+        "text": "<s>[INST] savings of previous year for each month as my account number is 409000493201'  [/INST] Month-1:-311244, Month-2:9101, Month-3:3476 </s>"
+    },
+    {
+        "text": "<s>[INST] Amount Saved each year as my account number is  409000493201' [/INST] You saved 497766 in 2021 ,272458 in 2022, -340550 in 2023 and -148114 in 2024. </s>"
+    },
+    {
+        "text": "<s>[INST] Savings of last 2 year as my account number is 409000611074'  [/INST] You saved 2270453 in 2022, -89578 in 2023 and -912470 in 2024. </s>"
+    },
+    {
+        "text": "<s>[INST] Expenses of each day of last week for account number 409000493201'  [/INST] You spend 118475,16440,62112,10331. </s>"
+    },
+    {
+        "text": "<s>[INST] Amount spent this year as my account number is 409000493201' ? [/INST] You spent 36616174 this year. </s>"
+    },
+    {
+        "text": "<s>[INST] amount/money saved each month previous year as my account number is 409000493201' ? [/INST] You lost 311244 in month 1 ,saved 9101,3476 in month 2 and month 3  previous year. </s>"
+    },
+    {
+        "text": "<s>[INST] income of the previous year as my account number is 409000493201 [/INST] Your income previous year was 37207621. </s>"
+    },
+    {
+        "text": "<s>[INST] income of the first 4 month of previous year as my account number is 409000493201'  [/INST] Your income of first 4 month of previous year was 4240693. </s>"
+    }
+]

@@ -307,12 +307,44 @@ Account_No = "409000493201'" AND year(Value_date) = year(curdate())
 group by year(Value_date);
 
 
+SELECT year(Value_date) as Year,sum(Withdrawal_amount) AS Total_Expenses FROM transactions WHERE 
+Account_No = "409000493201'" AND year(Value_date) = year(curdate())
+group by year(Value_date);
+
+-- 'Question':" income of the previous year as my account number is 409000493201",
+SELECT SUM(Deposit_amount) AS Total_Income FROM transactions 
+WHERE Account_No = "409000493201'" AND YEAR(Value_date) = YEAR(CURRENT_DATE) - 1;
+
+
+-- 'Question':"income of the last 2 month of previous year as my account number is 409000493201' ",
+
+SELECT SUM(Deposit_amount) AS Total_Income 
+FROM transactions 
+WHERE Account_No = "409000493201'"
+  AND MONTH(Value_date) IN (11, 12)
+  AND YEAR(Value_date) = YEAR(CURRENT_DATE) - 1;
+
+
+######################################### ADDING ADDITIONAL QUESTIONS AND SQL QUERY IN FEW SHOTS###############
+-- 'Question': "Total earnings last month?",
+SELECT SUM(Deposit_amount) AS Total_Earnings FROM transactions
+WHERE MONTH(Value_date) = MONTH(CURRENT_DATE() - INTERVAL 1 MONTH)
+AND YEAR(Value_date) = YEAR(CURRENT_DATE() - INTERVAL 1 MONTH);
+
+-- ANSWER: 498456184
+
+-- 'Question': "Consistent income in my last 3 months?",
+
+SELECT AVG(Deposit_amount) AS Average_Income
+FROM transactions WHERE Value_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 3 MONTH);
+               
+-- ANSWER: 225860.6447
+
+SELECT SUM(Deposit_amount) AS Total_Income FROM transactions WHERE YEAR(Value_date) = YEAR(CURRENT_DATE) - 1 ;
+
+SELECT Date, SUM(Deposit_amount) AS Total_Income FROM transactions WHERE Value_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY) AND Value_date < DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY) GROUP BY Date;
 
 
 
-
-
-    
-
-
+SELECT SUM(Withdrawal_amount) AS Total_Spending FROM transactions WHERE Date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 WEEK)
 
