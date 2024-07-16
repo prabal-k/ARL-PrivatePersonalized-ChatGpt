@@ -340,11 +340,146 @@ FROM transactions WHERE Value_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 3 MONTH)
                
 -- ANSWER: 225860.6447
 
-SELECT SUM(Deposit_amount) AS Total_Income FROM transactions WHERE YEAR(Value_date) = YEAR(CURRENT_DATE) - 1 ;
+-- QUESTION :How much amount did i lost each year ?  
+SELECT YEAR(Value_date) AS Year, 
+       SUM(Withdrawal_amount) - SUM(Deposit_amount) AS Losses 
+FROM transactions 
+GROUP BY YEAR(Value_date);
 
-SELECT Date, SUM(Deposit_amount) AS Total_Income FROM transactions WHERE Value_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY) AND Value_date < DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY) GROUP BY Date;
+-- QUESTION: amount i earned each year ?  
+SELECT YEAR(Value_date) AS Year, SUM(Deposit_amount) AS Total_Income FROM transactions
+GROUP BY Year ORDER BY Year DESC;
 
 
 
-SELECT SUM(Withdrawal_amount) AS Total_Spending FROM transactions WHERE Date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 WEEK)
+SELECT 
+DATE(Value_date) AS Date, 
+SUM(Deposit_amount) AS Daily_Income 
+FROM transactions 
+GROUP BY DATE(Value_date) 
+ORDER BY DATE(Value_date)  DESC 
+LIMIT 7;
+
+SELECT Month(Value_date) AS Month, SUM(Withdrawal_amount) AS Total_Expenses FROM transactions WHERE YEAR(Value_date) = YEAR(CURRENT_DATE()) 
+GROUP BY Month ;
+
+SELECT MONTH(Value_date) AS Month, SUM(Withdrawal_amount) AS Total_Expenses 
+                   FROM transactions 
+                   WHERE YEAR(Value_date) = YEAR(CURRENT_DATE()) 
+                   AND MONTH(Value_date) IN (1, 2, 3, 4) 
+                   GROUP BY MONTH(Value_date);
+                   
+
+SELECT WEEK(Value_date) AS Week, SUM(Deposit_amount) AS Total_Earnings 
+                   FROM transactions 
+                   WHERE YEAR(Value_date) = YEAR(CURRENT_DATE()) 
+                   AND MONTH(Value_date) = MONTH(CURRENT_DATE()) - 1
+                   GROUP BY WEEK(Value_date);
+                   
+SELECT AVG(Daily_Spending) AS Average_Daily_Spending 
+                   FROM (
+                       SELECT DATE(Value_date) AS Date, SUM(Withdrawal_amount) AS Daily_Spending 
+                       FROM transactions 
+                       WHERE Value_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY) 
+                       GROUP BY DATE(Value_date)
+                   ) AS DailySpending;
+                   
+SELECT AVG(Withdrawal_amount + Deposit_amount) AS Average_Transaction_Amount 
+                   FROM transactions 
+                   WHERE MONTH(Value_date) = MONTH(CURRENT_DATE()) AND YEAR(Value_date) = YEAR(CURRENT_DATE());
+
+SELECT YEAR(Value_date) AS Year, MONTH(Value_date) AS Month, SUM(Deposit_amount) AS Total_Income 
+                   FROM transactions 
+                   WHERE Value_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 6 MONTH) 
+                   GROUP BY YEAR(Value_date), MONTH(Value_date);
+                   
+                   SELECT YEAR(Value_date) AS Year, MONTH(Value_date) AS Month, SUM(Withdrawal_amount) AS Total_Expenditures 
+                   FROM transactions 
+                   WHERE Value_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 6 MONTH) 
+                   GROUP BY YEAR(Value_date), MONTH(Value_date);
+                   
+                   SELECT AVG(Daily_Spending) AS Average_Daily_Spending FROM ( SELECT DATE(Value_date) AS Date, SUM(Withdrawal_amount) AS Daily_Spending FROM transactions WHERE Value_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH) GROUP BY DATE(Value_date) ) AS DailySpending;
+        
+        
+        
+        
+SELECT AVG(Withdrawal_amount) AS Average_Spending FROM (SELECT Withdrawal_amount FROM transactions WHERE Withdrawal_amount IS NOT NULL ORDER BY Value_date DESC LIMIT 11) AS Last11Transactions;
+SELECT SUM(Withdrawal_amount) AS TotalSpending FROM (SELECT Withdrawal_amount FROM transactions WHERE Withdrawal_amount IS NOT NULL ORDER BY Value_date DESC LIMIT 18) AS Last18Transactions;
+SELECT COUNT(*) AS Total_Days FROM transactions WHERE Value_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 YEAR) AND Balance_Amount < 18900;
+
+
+SELECT COUNT(DISTINCT DATE(Value_date)) AS Total_Days FROM transactions WHERE YEAR(Value_date) = YEAR(CURRENT_DATE()) AND Balance_amount < 18900;
+
+
+SELECT Balance_amount AS Net_Worth FROM transactions WHERE Account_No = '409000438611' AND YEAR(Value_date) = YEAR(CURRENT_DATE);
+
+SELECT Balance_amount AS Net_Worth 
+FROM transactions 
+WHERE Account_No = '409000438611' 
+  AND YEAR(Value_date) = YEAR(CURRENT_DATE)
+ORDER BY Value_date DESC 
+LIMIT 1;
+
+
+
+SELECT Value_date, MAX(Withdrawal_amount) AS Highest_Transaction_Amount FROM transactions WHERE Value_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH) GROUP BY Value_date ORDER BY Highest_Transaction_Amount DESC LIMIT 1;
+SELECT Value_date, MAX(Withdrawal_amount) AS Highest_Transaction_Amount FROM transactions WHERE Value_date >= DATE_SUB(CURDATE(), INTERVAL 1 WEEK) GROUP BY Value_date ORDER BY Highest_Transaction_Amount DESC LIMIT 1;
+
+
+SELECT Value_date, MAX(Withdrawal_amount) AS Highest_Transaction_Amount FROM transactions WHERE YEAR(Value_date) = YEAR(CURRENT_DATE()) - 1 GROUP BY Value_date ORDER BY Highest_Transaction_Amount DESC LIMIT 1;
+
+SELECT Value_date, MIN(Deposit_amount) AS Lowest_Deposit_Amount FROM transactions WHERE YEAR(Value_date) = YEAR(CURRENT_DATE()) - 1 GROUP BY Value_date ORDER BY Lowest_Deposit_Amount LIMIT 1;
+
+
+
+SELECT Value_date, Transaction_details, Deposit_amount FROM transactions WHERE YEAR(Value_date) = YEAR(CURRENT_DATE() - INTERVAL 1 MONTH) AND MONTH(Value_date) = MONTH(CURRENT_DATE() - INTERVAL 1 MONTH) ORDER BY Deposit_amount DESC LIMIT 10;
+
+
+SELECT * 
+                FROM transactions 
+                WHERE YEAR(Value_date) = YEAR(CURDATE()) 
+                ORDER BY Value_date DESC 
+                LIMIT 1;
+
+
+SELECT year(Transaction_details) AS Year,sum(Withdrawal_amount) AS Total_Expenses FROM transactions WHERE year(Transaction_details) = year(curdate()) group by year(Transaction_details);
+
+
+
+SELECT date(Value_date) AS Date,sum(Withdrawal_amount)AS Total_Expenses FROM transactions WHERE Value_date >= DATE_SUB(CURDATE(), INTERVAL 1 YEAR) AND Value_date < CURDATE() GROUP BY date(Value_date) ORDER BY Total_Expenses DESC LIMIT 5;
+
+SELECT YEAR(Value_date) AS Year, MONTH(Value_date) AS Month, SUM(Withdrawal_amount) AS Total_Expenses FROM transactions WHERE Value_date >= DATE_SUB(CURDATE(), INTERVAL 1 YEAR) AND Value_date < CURDATE() GROUP BY YEAR(Value_date), MONTH(Value_date) ORDER BY Year DESC, Month DESC;
+
+
+
+
+SELECT YEAR(Value_date) AS Year, MONTH(Value_date) AS Month, SUM(Withdrawal_amount) AS Total_Expenses FROM transactions WHERE YEAR(Value_date) = YEAR(CURDATE()) - 1 GROUP BY YEAR(Value_date), MONTH(Value_date) ORDER BY Year DESC, Month DESC;
+
+SELECT SUM(Withdrawal_amount) AS Total_Spending FROM transactions WHERE Value_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 WEEK);
+SELECT SUM(Withdrawal_amount) AS Total_Spending 
+FROM transactions 
+WHERE Value_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 WEEK);
+
+
+-- How much did I spend each week this month
+SELECT WEEK(Value_date) AS Week, SUM(Withdrawal_amount) AS Weekly_Spending
+FROM transactions WHERE MONTH(Value_date) = MONTH(CURRENT_DATE()) AND YEAR(Value_date) 
+= YEAR(CURRENT_DATE()) GROUP BY WEEK(Value_date);
+                   
+
+SELECT WEEK(Value_date) AS Week, SUM(Withdrawal_amount) AS Total_Spending 
+                   FROM transactions 
+                   WHERE MONTH(Value_date) = MONTH(CURRENT_DATE()) 
+                   AND YEAR(Value_date) = YEAR(CURRENT_DATE()) 
+                   GROUP BY WEEK(Value_date);
+                   
+SELECT WEEK(Value_date) AS Week, SUM(Withdrawal_amount) AS Total_Spending FROM transactions WHERE Value_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH) GROUP BY WEEK(Value_date);
+
+SELECT Account_No, Date, Transaction_details, Value_date, Withdrawal_amount, Deposit_amount, Balance_amount FROM transactions WHERE Value_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 2 WEEK)
+ORDER BY Value_date DESC Limit 5 ;
+
+
+
+
+
 
