@@ -236,7 +236,6 @@ Date                        Total_Expenses
         'Question': "On average how much amount I spent each year?",
         'SQLQuery': """SELECT YEAR(Value_date) AS Year, AVG(SUM(Withdrawal_amount)) OVER (PARTITION BY YEAR(Value_date)) AS Average_Yearly_Spending FROM transactions GROUP BY YEAR(Value_date)"""
     },
-,
     {
         'Question': "How many transactions did I make this year?",
         'SQLQuery': """SELECT COUNT(*) AS Total_Transactions FROM transactions WHERE YEAR(Value_date) = YEAR(CURRENT_DATE())"""
