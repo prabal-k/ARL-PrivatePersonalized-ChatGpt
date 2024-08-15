@@ -1,49 +1,87 @@
-# to load the fine tuned model
-from langchain.llms import CTransformers 
-from langchain_community.utilities import SQLDatabase   #To interact with the database
-from langchain_experimental.sql import SQLDatabaseChain #To create a chain of llm and database chain
-from langchain.embeddings import HuggingFaceEmbeddings  #To load the embedding model from hugging face
-from langchain.vectorstores import Chroma               #Chroma Vectorstore
-from langchain.prompts import FewShotPromptTemplate     #To create fewshot template that servers as reference for the llm
-from langchain.chains.sql_database.prompt import PROMPT_SUFFIX,_mysql_prompt 
-from langchain.prompts.prompt import PromptTemplate     #Prompt template for llm input
-from sentence_transformers import SentenceTransformer   #To load the embedding model
-from guardrails import Guard, OnFailAction              #To implement guardrails 
-from guardrails.hub import CompetitorCheck, ToxicLanguage
-from guardrails.hub import ProfanityFree
-from sklearn.metrics.pairwise import cosine_similarity  
 import streamlit as st
-import os
+from langchain.llms import CTransformers 
+from langchain_community.utilities import SQLDatabase
+from langchain_experimental.sql import SQLDatabaseChain
+from langchain.prompts import PromptTemplate, FewShotPromptTemplate
+from langchain.vectorstores import Chroma
+from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.prompts import SemanticSimilarityExampleSelector
+from sklearn.metrics.pairwise import cosine_similarity
+from sentence_transformers import SentenceTransformer
+import os
+import numpy as np
+import time  # Import the time module
 
+# Initialize the LLM
+def initialize_llm():
+    llm = CTransformers(model="model\original-metallama-5epoch-graphofloss.Q4_1.gguf",
+                        model_type="llama", 
+                        config={'max_new_tokens': 60, 'temperature': 0.5, 'context_length': 3990})
+    return llm
 
+# Set page configuration with a different background color
+st.set_page_config(page_title="Chat-Gossip", page_icon="💬", layout="wide")
 
-# Function for Loading the model from the local storage
-# def load_llm():
-llm = CTransformers(model="model\original-metallama-5epoch-graphofloss.Q5_0.gguf",
-                        model_type="llama", config={'max_new_tokens':40,'temperature':0.5,'context_length': 3990})
-    # return llm
+# Custom CSS for chat-like conversation and background color
+st.markdown("""
+    <style>
+    .stApp {
+        background-color: #202123;
+    }
+    .user-bubble {
+        background-color: #15ad6e;
+        border-radius: 12px;
+        padding: 8px;
+        margin: 5px 0;
+        max-width: 80%;
+    }
+    .ai-bubble {
+        background-color: #0995ad;
+        border-radius: 12px;
+        padding: 8px;
+        margin: 5px 0;
+        max-width: 80%;
+    }
+    .chat-container {
+        display: flex;
+        flex-direction: column;
+    }
+    .user-bubble-container {
+        align-items: flex-end;
+        display: flex;
+        justify-content: flex-end;
+    }
+    .ai-bubble-container {
+        align-items: flex-start;
+        display: flex;
+        justify-content: flex-start;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-st.title("Welcome to chat-chat-chat-gossip")
-# Mark down
-st.markdown("<h3 style='text-align: center; color: green;'>Guff garam ekxin aau</h3>",
-            unsafe_allow_html=True)
-# MySQL connection URI
-username = 'root'  #username 
-password = 'prabal9869' #password
-host = '127.0.0.1'  #host
-dbname = 'arl1_bank'  # Database name
+st.markdown("<h3 style='text-align: center; color: #ad9f09;'>Welcome to personalized ChatGpt</h3>", unsafe_allow_html=True)
 
-# Constructing the MySQL URI
+# Database and embeddings setup
+username = 'root'
+password = 'prabal9869'
+host = '127.0.0.1'
+dbname = 'arl1_bank'
 mysql_uri = f"mysql+pymysql://{username}:{password}@{host}/{dbname}"
 
-# # Initializing SQLDatabase object for MySQL
 db = SQLDatabase.from_uri(mysql_uri, sample_rows_in_table_info=3)
-# print(db.table_info)
-#Creating a database chain
-db_chain = SQLDatabaseChain.from_llm(llm=llm,db=db,verbose=True)
-few_shots= [
-    {
+CHROMA_DIR = "vectorstore/chroma"
+CHROMA_DB_PATH = os.path.join(CHROMA_DIR, "index")
+
+if not os.path.exists(CHROMA_DB_PATH):
+    try:
+        os.makedirs(CHROMA_DIR, exist_ok=True)
+        st.write(f"Directory created or already exists: {CHROMA_DIR}")
+    except Exception as e:
+        st.error(f"An error occurred: {e}")
+
+embeddings = HuggingFaceEmbeddings(model_name='sentence-transformers/all-MiniLM-L6-v2')
+few_shots = [
+       {
     'Question': "How much amount did i earned last year ?",
     'SQLQuery': """SELECT SUM(Deposit_amount) AS Earned FROM transactions WHERE YEAR(Value_date) = YEAR(CURRENT_DATE) - 1;"""
     ,
@@ -84,106 +122,99 @@ few_shots= [
     'SQLResult':'1283234',
     'Answer':"Your networth in 2022 was RS 12,83,234"
  }
-]
+    ]
 
-
-# Define the path to save the vector store
-CHROMA_DIR = "vectorstore/chroma"
-CHROMA_DB_PATH = os.path.join(CHROMA_DIR, "index")
-
-if not os.path.exists(CHROMA_DB_PATH):
-    try:
-        # Ensure the vectorstore directory exists
-        os.makedirs(CHROMA_DIR, exist_ok=True)
-        st.write(f"Directory created or already exists: {CHROMA_DIR}")
-    except FileNotFoundError as e:
-        print(f"Error creating directory: {e}")
-    except Exception as e:
-        print(f"An unexpected error occurred: {e}")
-
-embeddings = HuggingFaceEmbeddings(model_name='sentence-transformers/all-MiniLM-L6-v2')
-# Check if the vector store already exists
 if os.path.exists(CHROMA_DB_PATH):
     st.write("Loading embeddings from existing Chroma vector store.")
-    
     vectorstore = Chroma(persist_directory=CHROMA_DB_PATH, embedding_function=embeddings)
 else:
     st.write("Creating new embeddings and saving to Chroma vector store.")
-    # Create embeddings and vector store
+   
     to_vectorize = [" ".join(example.values()) for example in few_shots]
     vectorstore = Chroma.from_texts(to_vectorize, embeddings, metadatas=few_shots, persist_directory=CHROMA_DB_PATH)
     vectorstore.persist()
-    print(f"New embeddings created and saved at: {CHROMA_DB_PATH}")
 
-#Selecting the most appropriate example from vectorstore that servers as reference for llm to generate response to unseen user questions
 example_selector = SemanticSimilarityExampleSelector(
     vectorstore=vectorstore,
     k=1,
 )
-st.write(example_selector.select_examples({"Question":"What is my income last month?"}))
+
 mysql_prompt = """You are an expert in converting natural language questions into MySQL queries. Your task is to generate a syntactically correct MySQL query based on the given input question, execute the query, and then provide an answer based on the query results.
 Here is the database schema defined by create statement. CREATE TABLE transactions ( `Account_No` VARCHAR(50) NOT NULL, `Transaction_details` TEXT, `Withdrawal_amount` INTEGER, `Deposit_amount` INTEGER, `Balance_amount` INTEGER, `Value_date` DATE, `Date` DATE )
 Pay attention to use CURDATE() function to get the current date, if the question involves "today","this year","this month" ,"this week","last month","last week","last year".
 Pay attention to only answer the single question of the user at a time ."""
-#Creating a format for the generating the reponse
 example_prompt = PromptTemplate(
-    input_variables=["Question", "SQLQuery", "SQLResult","Answer",],
+    input_variables=["Question", "SQLQuery", "SQLResult", "Answer"],
     template="\nQuestion: {Question}\nSQLQuery: {SQLQuery}\nSQLResult: {SQLResult}\nAnswer: {Answer}",
 )
-#Formatting the fewshot template
+
 few_shot_prompt = FewShotPromptTemplate(
     example_selector=example_selector,
     example_prompt=example_prompt,
     prefix=mysql_prompt,
     suffix="Question: {input} ",
-    input_variables=["input","top_k"], #These variables are used in the prefix and suffix
+    input_variables=["input"],
 )
-new_chain = SQLDatabaseChain.from_llm(llm, db, verbose=True, prompt=few_shot_prompt)
-example_questions = [shot['Question'].strip() for shot in few_shots]
-print(example_questions)
+
+new_chain = SQLDatabaseChain.from_llm(llm=initialize_llm(), db=db, verbose=True, prompt=few_shot_prompt)
 
 model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+example_questions = [shot['Question'].strip() for shot in few_shots]
 example_embeddings = model.encode(example_questions)
 
-# Function to determine if a user question is relevant to the database context
 def is_question_relevant(user_question, similarity_threshold=0.40):
-    user_embedding = model.encode([user_question])[0]  
-    
-    # calculating the cosine similarity between user question and example questions
+    user_embedding = model.encode([user_question])[0]
     similarity_scores = cosine_similarity(user_embedding.reshape(1, -1), example_embeddings)[0]
-    print(similarity_scores)
-    
     max_similarity_score = max(similarity_scores)
-    print(max_similarity_score)
     return max_similarity_score > similarity_threshold
 
-#Setting uo the guard rail for profanity,toxiclanguage etc.
-guard = Guard().use_many(
-    CompetitorCheck(["khalti", "fusemachine","Deerhold","Deerwalk","Cotiviti"], on_fail=OnFailAction.EXCEPTION),
-    ToxicLanguage(threshold=0.9, validation_method="sentence", on_fail=OnFailAction.EXCEPTION),
-    ProfanityFree(on_fail=OnFailAction.EXCEPTION))
-
-# Function to handle user queries
+# Handle user query function
 def handle_user_query(user_question):
     if is_question_relevant(user_question):
         return True
     else:
-        return "Your Question is not Relevant to the Context"
-    
-# User question in natural language
-user_question = "What is my current net worth for account number 409000493201 ?"
-print(user_question)
+        return "Your question is not relevant to the context."
 
-try:
-    # Validate the user question
-    guard.validate(user_question)  # If validation fails, an exception will be thrown
-    # If validation passes, handle the user query
-    response = handle_user_query(user_question)
-except Exception as e:
-    response = str(e)
+# Load LLM
+llm = initialize_llm()
 
-if response==True:
-    result=new_chain(user_question)
-    st.write(result)
-else:
-    print(response)
+if 'history' not in st.session_state:
+    st.session_state['history'] = []
+
+# Chat functionality with Streamlit
+if 'generated' not in st.session_state:
+    st.session_state['generated'] = ["Hello! I am your personal CHATGPT. You can ask me anything about your finance 🤗"]
+
+if 'past' not in st.session_state:
+    st.session_state['past'] = ["Hey! 👋"]
+
+response_container = st.container()
+container = st.container()
+
+with container:
+    with st.form(key='my_form', clear_on_submit=True):
+        user_input = st.text_input("Query:", placeholder="Ask about your bank transactions here (:", key='input')
+        submit_button = st.form_submit_button(label='Send')
+
+    if submit_button and user_input:
+        st.session_state['past'].append(user_input)  # Display user's question immediately
+        start_time = time.time()  # Start the timer
+
+        with st.spinner("Generating response..."):
+            response = handle_user_query(user_input)
+            if response == True:
+                result = new_chain.run(user_input)
+                end_time = time.time()  # Stop the timer
+                elapsed_time = end_time - start_time  # Calculate elapsed time
+                st.session_state['generated'].append(f"{result} (Generated in {elapsed_time:.2f} seconds)")
+            else:
+                st.error(response)
+
+if st.session_state['generated']:
+    with response_container:
+        for i in range(len(st.session_state['generated'])):
+            user_msg = st.session_state['past'][i]
+            ai_msg = st.session_state['generated'][i]
+            
+            st.markdown(f"<div class='chat-container user-bubble-container'><div class='user-bubble'>{user_msg}</div></div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='chat-container ai-bubble-container'><div class='ai-bubble'>{ai_msg}</div></div>", unsafe_allow_html=True)
