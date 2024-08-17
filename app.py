@@ -16,7 +16,7 @@ import time  # Import the time module
 def initialize_llm():
     llm = CTransformers(model="model\original-metallama-5epoch-graphofloss.Q4_1.gguf",
                         model_type="llama", 
-                        config={'max_new_tokens': 60, 'temperature': 0.5, 'context_length': 3990})
+                        config={'max_new_tokens': 100, 'temperature': 0.5, 'context_length': 3990})
     return llm
 
 # Set page configuration with a different background color
@@ -203,10 +203,11 @@ with container:
         with st.spinner("Generating response..."):
             response = handle_user_query(user_input)
             if response == True:
-                result = new_chain.run(user_input)
+                res = new_chain.run(user_input)
                 end_time = time.time()  # Stop the timer
                 elapsed_time = end_time - start_time  # Calculate elapsed time
-                st.session_state['generated'].append(f"{result} (Generated in {elapsed_time:.2f} seconds)")
+                extracted_result = res.split('\n')[0].strip()
+                st.session_state['generated'].append(f"{extracted_result} (Generated in {elapsed_time:.2f} seconds)")
             else:
                 st.error(response)
 
