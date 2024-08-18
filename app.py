@@ -14,7 +14,7 @@ import time  # Import the time module
 
 # Initialize the LLM
 def initialize_llm():
-    llm = CTransformers(model="model\original-metallama-5epoch-graphofloss.Q4_1.gguf",
+    llm = CTransformers(model="model\original-metallama-5epoch-graphofloss.Q5_0.gguf",
                         model_type="llama", 
                         config={'max_new_tokens': 100, 'temperature': 0.5, 'context_length': 3990})
     return llm
@@ -45,16 +45,18 @@ st.markdown("""
     .chat-container {
         display: flex;
         flex-direction: column;
+        max-width: 600px;
+        margin: 0 auto;
     }
     .user-bubble-container {
         align-items: flex-end;
-        display: flex;
         justify-content: flex-end;
+        margin-bottom: 8px;
     }
     .ai-bubble-container {
         align-items: flex-start;
-        display: flex;
         justify-content: flex-start;
+        margin-bottom: 8px;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -82,46 +84,12 @@ if not os.path.exists(CHROMA_DB_PATH):
 embeddings = HuggingFaceEmbeddings(model_name='sentence-transformers/all-MiniLM-L6-v2')
 few_shots = [
        {
-    'Question': "How much amount did i earned last year ?",
+    'Question': "How much amount did I earn last year?",
     'SQLQuery': """SELECT SUM(Deposit_amount) AS Earned FROM transactions WHERE YEAR(Value_date) = YEAR(CURRENT_DATE) - 1;"""
     ,
     'SQLResult': "1542",
-    'Answer': "You made 1542 transactions this year. </s>"
-},
-{
-    'Question': "I want to buy a car worth RS. 5,00,000 in next 2 years . So how much should i save each month to buy the car . ",
-    'SQLQuery': """SELECT round(AVG(Monthly_Savings),0) AS Average_Monthly_Savings FROM (SELECT YEAR(Value_date) AS Year, MONTH(Value_date) AS Month, SUM(Deposit_amount - Withdrawal_amount) AS Monthly_Savings FROM transactions GROUP BY YEAR(Value_date), MONTH(Value_date)) AS Monthly_Savings_Calculation;""",
-    'SQLResult': """9385""",
-    'Answer': """So your average monthly saving is RS 9385 .
-    Lets think step by step:
-        step-1) Determine Total Number of Months:
-        Time frame: 2 years (12 months in 1 year So 2 years * 12 months = 24) = 24 months
-    step-2) Calculate Required Monthly Savings:
-        Target amount: RS 500000
-        Required monthly savings:(It is obtained by dividing the total amount by Time frame) i.e RS. 500000 / 24 months = RS. 20,833.33
-    step-3) Compare Current Savings with Required Savings:
-        Current average monthly savings: RS 9385
-        Difference needed:  RS 20,833.33 - RS 9385 = RS. 11,448.33
-    step-4) Conclusion: To reach the goal of saving RS 500,000 in 2 years. increase monthly savings to RS 20,833.33 .The additional amount to save each month is RS. 11,448.33 </s>"""
+    'Answer': "You earned 1542 last year."
 }
-,
-{
-    'Question': "Can you give me a short description about my spendings of this month ?",
-    'SQLQuery': """SELECT COUNT(*) AS number_of_transactions,SUM(Withdrawal_amount) AS total_spending,MAX(Withdrawal_amount) AS highest_transaction_amount FROM transactions WHERE year(Value_date) =year(curdate()) And month(value_date) = month(curdate()) ;"""
-    ,
-    'SQLResult': """[(Decimal('2772')),
-                    (Decimal('529053340')),
-                    (Decimal('10000000')),
-                    ( Decimal('0'))]""",
-    'Answer': "You made 2772 transaction , spend RS 529,053,340 in total , RS 10,000,000 and RS 0 was you highest and lowest spending of this month .  </s>"
-}
-,
- {
-    'Question': "What was my net worth for account number x in year 2022 ? ",
-    'SQLQuery': """SELECT Balance_amount AS Net_Worth FROM transactions where account_no='x' and year(value_date)='2022' ORDER BY Value_date DESC LIMIT 1; """,
-    'SQLResult':'1283234',
-    'Answer':"Your networth in 2022 was RS 12,83,234"
- }
     ]
 
 if os.path.exists(CHROMA_DB_PATH):
@@ -139,10 +107,8 @@ example_selector = SemanticSimilarityExampleSelector(
     k=1,
 )
 
-mysql_prompt = """You are an expert in converting natural language questions into MySQL queries. Your task is to generate a syntactically correct MySQL query based on the given input question, execute the query, and then provide an answer based on the query results.
-Here is the database schema defined by create statement. CREATE TABLE transactions ( `Account_No` VARCHAR(50) NOT NULL, `Transaction_details` TEXT, `Withdrawal_amount` INTEGER, `Deposit_amount` INTEGER, `Balance_amount` INTEGER, `Value_date` DATE, `Date` DATE )
-Pay attention to use CURDATE() function to get the current date, if the question involves "today","this year","this month" ,"this week","last month","last week","last year".
-Pay attention to only answer the single question of the user at a time ."""
+mysql_prompt = """You are an expert in converting natural language questions into MySQL queries. The question involves "today","this year","this month" ,"this week","last month","last week","last year".
+Pay attention to only answer the single question of the user at a time."""
 example_prompt = PromptTemplate(
     input_variables=["Question", "SQLQuery", "SQLResult", "Answer"],
     template="\nQuestion: {Question}\nSQLQuery: {SQLQuery}\nSQLResult: {SQLResult}\nAnswer: {Answer}",
@@ -152,7 +118,7 @@ few_shot_prompt = FewShotPromptTemplate(
     example_selector=example_selector,
     example_prompt=example_prompt,
     prefix=mysql_prompt,
-    suffix="Question: {input} ",
+    suffix="Question: {input}",
     input_variables=["input"],
 )
 
@@ -178,23 +144,54 @@ def handle_user_query(user_question):
 # Load LLM
 llm = initialize_llm()
 
-if 'history' not in st.session_state:
-    st.session_state['history'] = []
+# if 'history' not in st.session_state:
+#     st.session_state['history'] = []
 
 # Chat functionality with Streamlit
 if 'generated' not in st.session_state:
     st.session_state['generated'] = ["Hello! I am your personal CHATGPT. You can ask me anything about your finance 🤗"]
 
 if 'past' not in st.session_state:
-    st.session_state['past'] = ["Hey! 👋"]
+    st.session_state['past'] = ["🤖 , Hey! 👋"]
 
 response_container = st.container()
-container = st.container()
 
-with container:
+# Adjust container for input field to mimic ChatGPT style
+with st.container():
     with st.form(key='my_form', clear_on_submit=True):
-        user_input = st.text_input("Query:", placeholder="Ask about your bank transactions here (:", key='input')
+        # Center the input field and limit its width
+        user_input = st.text_input(
+            "Query:",
+            placeholder="Ask about your bank transactions here (:",
+            key='input',
+            label_visibility="collapsed"
+        )
+        # Center the submit button and input field
         submit_button = st.form_submit_button(label='Send')
+
+        # Custom CSS for narrowing and centering the input field and submit button
+        st.write("""
+            <style>
+            div.stTextInput > div {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                margin: 0 auto;
+                width: 50%;
+            }
+            div.stTextInput input {
+                width: 70%;
+                max-width: 400px;
+            }
+            button[kind=primary] {
+                margin-top: 0px;  /* Reduced margin */
+                margin-left: 10px; /* Move button closer to input */
+                padding: 0.5rem 1rem;
+                width: auto;
+                display: inline-block;
+            }
+            </style>
+            """, unsafe_allow_html=True)
 
     if submit_button and user_input:
         st.session_state['past'].append(user_input)  # Display user's question immediately
@@ -217,5 +214,37 @@ if st.session_state['generated']:
             user_msg = st.session_state['past'][i]
             ai_msg = st.session_state['generated'][i]
             
-            st.markdown(f"<div class='chat-container user-bubble-container'><div class='user-bubble'>{user_msg}</div></div>", unsafe_allow_html=True)
-            st.markdown(f"<div class='chat-container ai-bubble-container'><div class='ai-bubble'>{ai_msg}</div></div>", unsafe_allow_html=True)
+            # Custom CSS for chat bubbles
+            st.markdown(f"""
+                <div class='chat-container user-bubble-container'>
+                    <div class='user-bubble' style='max-width: 500px; margin-bottom: 8px;'>{user_msg}</div>
+                </div>
+                <div class='chat-container ai-bubble-container'>
+                    <div class='ai-bubble' style='max-width: 500px; margin-bottom: 8px;'>{ai_msg}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+# Custom CSS for overall page and chat bubble styling
+st.write("""
+    <style>
+    .stApp {
+        background-color: #202123;
+    }
+    .chat-container {
+        display: flex;
+        flex-direction: column;
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    .user-bubble-container {
+        align-items: flex-end;
+        justify-content: flex-end;
+        margin-bottom: 8px;
+    }
+    .ai-bubble-container {
+        align-items: flex-start;
+        justify-content: flex-start;
+        margin-bottom: 8px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
