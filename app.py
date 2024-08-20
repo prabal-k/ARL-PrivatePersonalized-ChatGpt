@@ -88,7 +88,7 @@ few_shots = [
     'SQLQuery': """SELECT SUM(Deposit_amount) AS Earned FROM transactions WHERE YEAR(Value_date) = YEAR(CURRENT_DATE) - 1;"""
     ,
     'SQLResult': "1542",
-    'Answer': "You earned 1,542 last year."
+    'Answer': "You earned Rs 1,542 last year."
 },
 {
     'Question': "What is my total spending on utilities this month?",
@@ -99,7 +99,7 @@ few_shots = [
                    AND Transaction_details = 'Utilities';"""
       ,
     'SQLResult': "23142",
-    'Answer': "Your total spending on utilities this month is RS 23,142 last year."
+    'Answer': "Your total spending on utilities this month is Rs 23,142 last year."
 },
  {
     'Question': "I want to buy a car worth RS 6,00,000 in next 3 years . So how much should i save each month to buy the car ?  ",
