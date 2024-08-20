@@ -14,9 +14,9 @@ import time  # Import the time module
 
 # Initialize the LLM
 def initialize_llm():
-    llm = CTransformers(model="model\original-metallama-5epoch-graphofloss.Q5_0.gguf",
+    llm = CTransformers(model="model\original-metallama-6epoch-graphofloss-2.Q4_1.gguf",
                         model_type="llama", 
-                        config={'max_new_tokens': 100, 'temperature': 0.5, 'context_length': 3990})
+                        config={'max_new_tokens': 280, 'temperature': 0.5, 'context_length': 3990})
     return llm
 
 # Set page configuration with a different background color
@@ -67,7 +67,7 @@ st.markdown("<h3 style='text-align: center; color: #ad9f09;'>Welcome to personal
 username = 'root'
 password = 'prabal9869'
 host = '127.0.0.1'
-dbname = 'arl1_bank'
+dbname = 'arl_bank2'
 mysql_uri = f"mysql+pymysql://{username}:{password}@{host}/{dbname}"
 
 db = SQLDatabase.from_uri(mysql_uri, sample_rows_in_table_info=3)
@@ -88,7 +88,36 @@ few_shots = [
     'SQLQuery': """SELECT SUM(Deposit_amount) AS Earned FROM transactions WHERE YEAR(Value_date) = YEAR(CURRENT_DATE) - 1;"""
     ,
     'SQLResult': "1542",
-    'Answer': "You earned 1542 last year."
+    'Answer': "You earned 1,542 last year."
+},
+{
+    'Question': "What is my total spending on utilities this month?",
+    'SQLQuery': """SELECT SUM(Withdrawal_amount) AS Total_Utilities_Spending
+                   FROM transactions
+                   WHERE YEAR(Value_date) = YEAR(CURRENT_DATE())
+                   AND MONTH(Value_date) = MONTH(CURRENT_DATE())
+                   AND Transaction_details = 'Utilities';"""
+      ,
+    'SQLResult': "23142",
+    'Answer': "Your total spending on utilities this month is RS 23,142 last year."
+},
+ {
+    'Question': "I want to buy a car worth RS 6,00,000 in next 3 years . So how much should i save each month to buy the car ?  ",
+    'SQLQuery': """SELECT AVG(Monthly_Savings) AS Average_Monthly_Savings FROM (SELECT YEAR(Value_date) AS Year, MONTH(Value_date) AS Month,SUM(Deposit_amount - Withdrawal_amount) AS Monthly_Savings FROM transactions GROUP BY YEAR(Value_date), MONTH(Value_date)) AS Monthly_Savings_Calculation;""",
+    'SQLResult': """9627.44""",
+    'Answer': """Lets think step by step:
+        step-1) Determine Total Number of Months:
+        Time frame: 3 years (12 months in 1 year So 3 years * 12 months = 36) = 36 months
+
+    step-2) Calculate Required Monthly Savings:
+        Target amount: RS 6,00,000
+        Required monthly savings:(It is obtained by dividing the total amount by Time frame)RS 600000 / 36 months = RS 16,666.67
+
+    step-3) Compare Current Savings with Required Savings:
+        Current average monthly savings: RS 9627.44
+        Difference needed: RS 16,666.67 - RS 9,627.44 = RS 7,039.23
+
+    step-4) Conclusion: To reach the goal of saving RS 6,00,000 in 3 years, increase monthly savings to RS 16,666.67 The additional amount to save each month is RS 7,039.23"""
 }
     ]
 
@@ -128,7 +157,7 @@ model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
 example_questions = [shot['Question'].strip() for shot in few_shots]
 example_embeddings = model.encode(example_questions)
 
-def is_question_relevant(user_question, similarity_threshold=0.40):
+def is_question_relevant(user_question, similarity_threshold=0.10):
     user_embedding = model.encode([user_question])[0]
     similarity_scores = cosine_similarity(user_embedding.reshape(1, -1), example_embeddings)[0]
     max_similarity_score = max(similarity_scores)
@@ -203,7 +232,7 @@ with st.container():
                 res = new_chain.run(user_input)
                 end_time = time.time()  # Stop the timer
                 elapsed_time = end_time - start_time  # Calculate elapsed time
-                extracted_result = res.split('\n')[0].strip()
+                extracted_result = res.split('\n\nQuestion')[0].strip()
                 st.session_state['generated'].append(f"{extracted_result} (Generated in {elapsed_time:.2f} seconds)")
             else:
                 st.error(response)
