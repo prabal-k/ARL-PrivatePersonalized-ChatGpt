@@ -9,14 +9,23 @@ from langchain.prompts import SemanticSimilarityExampleSelector
 from sklearn.metrics.pairwise import cosine_similarity
 from sentence_transformers import SentenceTransformer
 import os
+import torch  # Import torch for GPU handling
 import numpy as np
 import time  # Import the time module
 
+# Check if GPU is available
+device = "cuda" if torch.cuda.is_available() else "cpu"
+print(device)
+
 # Initialize the LLM
 def initialize_llm():
-    llm = CTransformers(model="model\original-metallama-6epoch-graphofloss-2.Q4_1.gguf",
-                        model_type="llama", 
-                        config={'max_new_tokens': 280, 'temperature': 0.5, 'context_length': 3990})
+    llm = CTransformers(
+        model="model\original-metallama-6epoch-graphofloss-2.Q4_1.gguf",
+        model_type="llama", 
+        config={'max_new_tokens': 280, 'temperature': 0.5, 'context_length': 3990}
+    )
+    if device == "cuda":
+        llm.model.to(device)  # Move the model to GPU if available
     return llm
 
 # Set page configuration with a different background color
@@ -83,14 +92,13 @@ if not os.path.exists(CHROMA_DB_PATH):
 
 embeddings = HuggingFaceEmbeddings(model_name='sentence-transformers/all-MiniLM-L6-v2')
 few_shots = [
-       {
-    'Question': "How much amount did I earn last year?",
-    'SQLQuery': """SELECT SUM(Deposit_amount) AS Earned FROM transactions WHERE YEAR(Value_date) = YEAR(CURRENT_DATE) - 1;"""
-    ,
-    'SQLResult': "1542",
-    'Answer': "You earned Rs 1,542 last year."
-},
-{
+    {
+        'Question': "How much amount did I earn last year?",
+        'SQLQuery': """SELECT SUM(Deposit_amount) AS Earned FROM transactions WHERE YEAR(Value_date) = YEAR(CURRENT_DATE) - 1;""",
+        'SQLResult': "1542",
+        'Answer': "You earned Rs 1,542 last year ."
+    },
+    {
     'Question': "What is my total spending on utilities this month?",
     'SQLQuery': """SELECT SUM(Withdrawal_amount) AS Total_Utilities_Spending
                    FROM transactions
@@ -99,7 +107,7 @@ few_shots = [
                    AND Transaction_details = 'Utilities';"""
       ,
     'SQLResult': "23142",
-    'Answer': "Your total spending on utilities this month is Rs 23,142 last year."
+    'Answer': "Your total spending on utilities this month is Rs 23,142 ."
 },
  {
     'Question': "I want to buy a car worth RS 6,00,000 in next 3 years . So how much should i save each month to buy the car ?  ",
@@ -118,8 +126,23 @@ few_shots = [
         Difference needed: RS 16,666.67 - RS 9,627.44 = RS 7,039.23
 
     step-4) Conclusion: To reach the goal of saving RS 6,00,000 in 3 years, increase monthly savings to RS 16,666.67 The additional amount to save each month is RS 7,039.23"""
-}
-    ]
+},
+ {
+        'Question':"What is my total expenses of last 8 months ?",
+        'SQLQuery':"""SELECT SUM(Withdrawal_amount) AS Total_Expenses FROM transactions WHERE Value_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 8 MONTH);""",
+        'SQLResult':"75124046",
+        'Answer':"Your expenses of last 8 months is Rs 75,124,046 "
+    },
+    {
+        'Question':"How much did I save last month ?",
+        'SQLQuery':"""SELECT (SUM(Deposit_amount) - SUM(Withdrawal_amount)) AS Savings_Last_Month FROM 
+transactions WHERE YEAR(Value_date) = YEAR(CURRENT_DATE() - INTERVAL 1 MONTH) AND MONTH(Value_date) = MONTH(CURRENT_DATE() - INTERVAL 1 MONTH);""",
+        'SQLResult':"-193509",
+        'Answer':"You saved -193509 last month."
+    },
+
+
+]
 
 if os.path.exists(CHROMA_DB_PATH):
     st.write("Loading embeddings from existing Chroma vector store.")
@@ -157,7 +180,7 @@ model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
 example_questions = [shot['Question'].strip() for shot in few_shots]
 example_embeddings = model.encode(example_questions)
 
-def is_question_relevant(user_question, similarity_threshold=0.10):
+def is_question_relevant(user_question, similarity_threshold=0.50):
     user_embedding = model.encode([user_question])[0]
     similarity_scores = cosine_similarity(user_embedding.reshape(1, -1), example_embeddings)[0]
     max_similarity_score = max(similarity_scores)
@@ -173,8 +196,8 @@ def handle_user_query(user_question):
 # Load LLM
 llm = initialize_llm()
 
-# if 'history' not in st.session_state:
-#     st.session_state['history'] = []
+if 'history' not in st.session_state:
+    st.session_state['history'] = []
 
 # Chat functionality with Streamlit
 if 'generated' not in st.session_state:
@@ -235,7 +258,7 @@ with st.container():
                 extracted_result = res.split('\n\nQuestion')[0].strip()
                 st.session_state['generated'].append(f"{extracted_result} (Generated in {elapsed_time:.2f} seconds)")
             else:
-                st.error(response)
+                st.session_state['generated'].append(f"{response}")
 
 if st.session_state['generated']:
     with response_container:
@@ -259,10 +282,24 @@ st.write("""
     .stApp {
         background-color: #202123;
     }
+    .user-bubble {
+        background-color: #15ad6e;
+        border-radius: 12px;
+        padding: 8px;
+        margin: 5px 0;
+        max-width: 80%;
+    }
+    .ai-bubble {
+        background-color: #0995ad;
+        border-radius: 12px;
+        padding: 8px;
+        margin: 5px 0;
+        max-width: 80%;
+    }
     .chat-container {
         display: flex;
         flex-direction: column;
-        max-width: 800px;
+        max-width: 600px;
         margin: 0 auto;
     }
     .user-bubble-container {
