@@ -12,6 +12,8 @@ import os
 import torch  # Import torch for GPU handling
 import numpy as np
 import time  # Import the time module
+import re
+from sqlalchemy.exc import SQLAlchemyError  # Import SQLAlchemy error handling
 
 # Check if GPU is available
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -22,33 +24,32 @@ def initialize_llm():
     llm = CTransformers(
         model="model\original-metallama-6epoch-graphofloss-2.Q4_1.gguf",
         model_type="llama", 
-        config={'max_new_tokens': 280, 'temperature': 0.5, 'context_length': 3990}
+        config={'max_new_tokens': 110, 'temperature': 0.5, 'context_length': 2990}
     )
-    if device == "cuda":
-        llm.model.to(device)  # Move the model to GPU if available
     return llm
 
-# Set page configuration with a different background color
+# Set page configuration
 st.set_page_config(page_title="Chat-Gossip", page_icon="💬", layout="wide")
 
-# Custom CSS for chat-like conversation and background color
+# Custom CSS for chat-like conversation and overall appearance
 st.markdown("""
     <style>
     .stApp {
         background-color: #202123;
+        color: white;
     }
     .user-bubble {
         background-color: #15ad6e;
         border-radius: 12px;
         padding: 8px;
-        margin: 5px 0;
+        margin: 5px -200px;
         max-width: 80%;
     }
     .ai-bubble {
         background-color: #0995ad;
         border-radius: 12px;
         padding: 8px;
-        margin: 5px 0;
+        margin: 5px -200px;
         max-width: 80%;
     }
     .chat-container {
@@ -60,16 +61,30 @@ st.markdown("""
     .user-bubble-container {
         align-items: flex-end;
         justify-content: flex-end;
-        margin-bottom: 8px;
+        margin-bottom: 22px;
     }
     .ai-bubble-container {
         align-items: flex-start;
         justify-content: flex-start;
-        margin-bottom: 8px;
+        margin-bottom: 22px;
+    }
+    .input-container {
+        display: flex;
+        justify-content: center;
+        padding: 10px;
+    }
+    .input-container .stTextInput {
+        width: 100%; 
+    }
+    .input-container .stButton {
+        display: flex;
+        justify-content: center;
+        width: 100%; 
     }
     </style>
     """, unsafe_allow_html=True)
 
+# Centered header
 st.markdown("<h3 style='text-align: center; color: #ad9f09;'>Welcome to personalized ChatGpt</h3>", unsafe_allow_html=True)
 
 # Database and embeddings setup
@@ -90,58 +105,46 @@ if not os.path.exists(CHROMA_DB_PATH):
     except Exception as e:
         st.error(f"An error occurred: {e}")
 
-embeddings = HuggingFaceEmbeddings(model_name='sentence-transformers/all-MiniLM-L6-v2')
+embeddings = HuggingFaceEmbeddings(model_name='sentence-transformers/all-mpnet-base-v2')
 few_shots = [
     {
         'Question': "How much amount did I earn last year?",
         'SQLQuery': """SELECT SUM(Deposit_amount) AS Earned FROM transactions WHERE YEAR(Value_date) = YEAR(CURRENT_DATE) - 1;""",
         'SQLResult': "1542",
-        'Answer': "You earned Rs 1,542 last year ."
-    },
+        'Answer': "You earned Rs 1,542 last year."
+    }
+    ,
     {
-    'Question': "What is my total spending on utilities this month?",
-    'SQLQuery': """SELECT SUM(Withdrawal_amount) AS Total_Utilities_Spending
+    'Question': "How many transactions did I make each day this week?",
+    'SQLQuery': """SELECT DATE(Value_date) AS Date, COUNT(*) AS Total_Transactions
                    FROM transactions
-                   WHERE YEAR(Value_date) = YEAR(CURRENT_DATE())
-                   AND MONTH(Value_date) = MONTH(CURRENT_DATE())
-                   AND Transaction_details = 'Utilities';"""
-      ,
-    'SQLResult': "23142",
-    'Answer': "Your total spending on utilities this month is Rs 23,142 ."
+                   WHERE YEARWEEK(Value_date) = YEARWEEK(CURRENT_DATE())
+                   GROUP BY DATE(Value_date)""",
+    'SQLResult': "78",
+    'Answer': "You made 78 transactions this week."
 },
- {
-    'Question': "I want to buy a car worth RS 6,00,000 in next 3 years . So how much should i save each month to buy the car ?  ",
-    'SQLQuery': """SELECT AVG(Monthly_Savings) AS Average_Monthly_Savings FROM (SELECT YEAR(Value_date) AS Year, MONTH(Value_date) AS Month,SUM(Deposit_amount - Withdrawal_amount) AS Monthly_Savings FROM transactions GROUP BY YEAR(Value_date), MONTH(Value_date)) AS Monthly_Savings_Calculation;""",
-    'SQLResult': """9627.44""",
-    'Answer': """Lets think step by step:
-        step-1) Determine Total Number of Months:
-        Time frame: 3 years (12 months in 1 year So 3 years * 12 months = 36) = 36 months
-
-    step-2) Calculate Required Monthly Savings:
-        Target amount: RS 6,00,000
-        Required monthly savings:(It is obtained by dividing the total amount by Time frame)RS 600000 / 36 months = RS 16,666.67
-
-    step-3) Compare Current Savings with Required Savings:
-        Current average monthly savings: RS 9627.44
-        Difference needed: RS 16,666.67 - RS 9,627.44 = RS 7,039.23
-
-    step-4) Conclusion: To reach the goal of saving RS 6,00,000 in 3 years, increase monthly savings to RS 16,666.67 The additional amount to save each month is RS 7,039.23"""
+  {
+    'Question': "Give me the breakdown of my income of each month this year?",
+    'SQLQuery': """SELECT YEAR(Value_date) AS Year, MONTH(Value_date) AS Month, SUM(Deposit_amount) AS Total_Income
+                   FROM transactions WHERE YEAR(Value_date) = YEAR(CURRENT_DATE()) GROUP BY YEAR(Value_date), MONTH(Value_date)""",
+    'SQLResult': """[(2024,1, Decimal('10133087.00')),
+        (2024,2, Decimal('15161439.00')),
+        (2024,3, Decimal('12471013.00')),
+        (2024,4, Decimal('12207818.00')),
+        (2024,5, Decimal('13288480.00'))]""",
+    'Answer': """Here is your breakdown of your income of each month this year.
+    2024 January: Rs 1,01,33,087 ,
+    2024 February: Rs  1,51,61,439 ,
+    2024 March: Rs  1,24,71,013 ,
+    2024 April: Rs  1,22,07,818 ,
+    2024 May: Rs  1,32,88,480"""
 },
- {
-        'Question':"What is my total expenses of last 8 months ?",
-        'SQLQuery':"""SELECT SUM(Withdrawal_amount) AS Total_Expenses FROM transactions WHERE Value_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 8 MONTH);""",
-        'SQLResult':"75124046",
-        'Answer':"Your expenses of last 8 months is Rs 75,124,046 "
-    },
-    {
-        'Question':"How much did I save last month ?",
-        'SQLQuery':"""SELECT (SUM(Deposit_amount) - SUM(Withdrawal_amount)) AS Savings_Last_Month FROM 
-transactions WHERE YEAR(Value_date) = YEAR(CURRENT_DATE() - INTERVAL 1 MONTH) AND MONTH(Value_date) = MONTH(CURRENT_DATE() - INTERVAL 1 MONTH);""",
-        'SQLResult':"-193509",
-        'Answer':"You saved -193509 last month."
-    },
-
-
+{
+    'Question': "In which category did i spend the most money this month ?",
+    'SQLQuery': """SELECT Transaction_details AS Category, SUM(Withdrawal_amount) AS Total_Spending FROM transactions WHERE YEAR(Value_date) = YEAR(CURRENT_DATE()) AND MONTH(Value_date) = MONTH(CURRENT_DATE()) GROUP BY Transaction_details ORDER BY Total_Spending DESC LIMIT 1;""",
+    'SQLResult': "[Healthcare, Decimal('10133087.00'))]",
+    'Answer': "You spend most money on Healthcare which is Rs 1,01,33,087.00 this month ."
+}
 ]
 
 if os.path.exists(CHROMA_DB_PATH):
@@ -159,8 +162,19 @@ example_selector = SemanticSimilarityExampleSelector(
     k=1,
 )
 
-mysql_prompt = """You are an expert in converting natural language questions into MySQL queries. The question involves "today","this year","this month" ,"this week","last month","last week","last year".
-Pay attention to only answer the single question of the user at a time."""
+mysql_prompt = """You are a MySQL expert. Given an input question, first create a syntactically correct MySQL query to run.
+Table information:Pay attention to use only the column names you can see in the tables below. Be careful to not query for columns that do not exist. Also, pay attention to which column is in which table.
+Pay attention to use CURDATE() function to get the current date, if the question involves "today".
+
+Use the following format:
+
+Question: Question here
+SQLQuery: Query to run
+SQLResult: Result of the SQLQuery
+Answer: Final answer here
+
+Table information:
+1. `transactions` with columns: `Account_No`, `Date`, `Transaction_details`, `Value_date`, `Withdrawal_amount`, `Deposit_amount`, `Balance_amount`."""
 example_prompt = PromptTemplate(
     input_variables=["Question", "SQLQuery", "SQLResult", "Answer"],
     template="\nQuestion: {Question}\nSQLQuery: {SQLQuery}\nSQLResult: {SQLResult}\nAnswer: {Answer}",
@@ -176,7 +190,9 @@ few_shot_prompt = FewShotPromptTemplate(
 
 new_chain = SQLDatabaseChain.from_llm(llm=initialize_llm(), db=db, verbose=True, prompt=few_shot_prompt)
 
-model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+# sentence-transformers/all-mpnet-base-v2
+# sentence-transformers/all-MiniLM-L6-v2
+model = SentenceTransformer('sentence-transformers/all-mpnet-base-v2')
 example_questions = [shot['Question'].strip() for shot in few_shots]
 example_embeddings = model.encode(example_questions)
 
@@ -184,14 +200,26 @@ def is_question_relevant(user_question, similarity_threshold=0.50):
     user_embedding = model.encode([user_question])[0]
     similarity_scores = cosine_similarity(user_embedding.reshape(1, -1), example_embeddings)[0]
     max_similarity_score = max(similarity_scores)
+    print(f"Max Similarity Score: {max_similarity_score}")  # Add this line for debugging
     return max_similarity_score > similarity_threshold
 
-# Handle user query function
+# Modify the handle_user_query function to handle exceptions
 def handle_user_query(user_question):
     if is_question_relevant(user_question):
-        return True
+        try:
+            # Attempt to generate the response from the LLM and SQL database
+            return new_chain.run(user_question)
+        # except SQLAlchemyError as e:
+        #     # Catch SQLAlchemy errors and return a generic message
+        #     # st.error("Sorry, I am unable to respond.")
+        #     return "Sorry, I am unable to respond."
+        except Exception as e:
+            print(f"Error occurred: {e}")  # Add this line for debugging
+            # Catch any other exceptions and return a generic message
+            # st.error("Sorry, I am unable to respond.")
+            return "Sorry, I am unable to respond."
     else:
-        return "Your question is not relevant to the context."
+        return "Sorry I cannot answer your Question."
 
 # Load LLM
 llm = initialize_llm()
@@ -201,49 +229,30 @@ if 'history' not in st.session_state:
 
 # Chat functionality with Streamlit
 if 'generated' not in st.session_state:
-    st.session_state['generated'] = ["Hello! I am your personal CHATGPT. You can ask me anything about your finance 🤗"]
+    st.session_state['generated'] = ["Hello! I am your personal ChatGpt.🤗"]
 
 if 'past' not in st.session_state:
-    st.session_state['past'] = ["🤖 , Hey! 👋"]
+    st.session_state['past'] = [" Hey! 👋"]
 
 response_container = st.container()
 
 # Adjust container for input field to mimic ChatGPT style
 with st.container():
-    with st.form(key='my_form', clear_on_submit=True):
-        # Center the input field and limit its width
-        user_input = st.text_input(
-            "Query:",
-            placeholder="Ask about your bank transactions here (:",
-            key='input',
-            label_visibility="collapsed"
-        )
-        # Center the submit button and input field
-        submit_button = st.form_submit_button(label='Send')
+    st.markdown("<div class='input-container'>", unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 2, 1])  # Create three columns
 
-        # Custom CSS for narrowing and centering the input field and submit button
-        st.write("""
-            <style>
-            div.stTextInput > div {
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                margin: 0 auto;
-                width: 50%;
-            }
-            div.stTextInput input {
-                width: 70%;
-                max-width: 400px;
-            }
-            button[kind=primary] {
-                margin-top: 0px;  /* Reduced margin */
-                margin-left: 10px; /* Move button closer to input */
-                padding: 0.5rem 1rem;
-                width: auto;
-                display: inline-block;
-            }
-            </style>
-            """, unsafe_allow_html=True)
+    with col2:  # Center column for the input
+        with st.form(key='my_form', clear_on_submit=True):
+            user_input = st.text_input(
+                "Query:",
+                placeholder="Ask about your bank transactions here (:",
+                key='input',
+                label_visibility="collapsed"
+            )
+            submit_button = st.form_submit_button(label='Send')
+
+    st.markdown("</div>", unsafe_allow_html=True)
 
     if submit_button and user_input:
         st.session_state['past'].append(user_input)  # Display user's question immediately
@@ -251,14 +260,23 @@ with st.container():
 
         with st.spinner("Generating response..."):
             response = handle_user_query(user_input)
-            if response == True:
-                res = new_chain.run(user_input)
+            if response == "Sorry, I am unable to respond.":
+                st.session_state['generated'].append(response)
+            else:
                 end_time = time.time()  # Stop the timer
                 elapsed_time = end_time - start_time  # Calculate elapsed time
-                extracted_result = res.split('\n\nQuestion')[0].strip()
+                # Define the patterns to split on
+                patterns = [r'\nQuestion', r'\nAnswer', r'\n\nQuestion','\nQuestion','A']
+
+                # Join the patterns into a single regular expression
+                combined_pattern = '|'.join(patterns)
+
+                # Use re.split to split based on any of the patterns
+                split_response = re.split(combined_pattern, response, maxsplit=1)
+                extracted_result = split_response[0].strip() if split_response else response.strip()
+
+                # Append the result with the elapsed time
                 st.session_state['generated'].append(f"{extracted_result} (Generated in {elapsed_time:.2f} seconds)")
-            else:
-                st.session_state['generated'].append(f"{response}")
 
 if st.session_state['generated']:
     with response_container:
@@ -266,51 +284,12 @@ if st.session_state['generated']:
             user_msg = st.session_state['past'][i]
             ai_msg = st.session_state['generated'][i]
             
-            # Custom CSS for chat bubbles
+            # Display user and AI messages
             st.markdown(f"""
                 <div class='chat-container user-bubble-container'>
-                    <div class='user-bubble' style='max-width: 500px; margin-bottom: 8px;'>{user_msg}</div>
+                    <div class='user-bubble'>{user_msg}</div>
                 </div>
                 <div class='chat-container ai-bubble-container'>
-                    <div class='ai-bubble' style='max-width: 500px; margin-bottom: 8px;'>{ai_msg}</div>
+                    <div class='ai-bubble'>{ai_msg}</div>
                 </div>
                 """, unsafe_allow_html=True)
-
-# Custom CSS for overall page and chat bubble styling
-st.write("""
-    <style>
-    .stApp {
-        background-color: #202123;
-    }
-    .user-bubble {
-        background-color: #15ad6e;
-        border-radius: 12px;
-        padding: 8px;
-        margin: 5px 0;
-        max-width: 80%;
-    }
-    .ai-bubble {
-        background-color: #0995ad;
-        border-radius: 12px;
-        padding: 8px;
-        margin: 5px 0;
-        max-width: 80%;
-    }
-    .chat-container {
-        display: flex;
-        flex-direction: column;
-        max-width: 600px;
-        margin: 0 auto;
-    }
-    .user-bubble-container {
-        align-items: flex-end;
-        justify-content: flex-end;
-        margin-bottom: 8px;
-    }
-    .ai-bubble-container {
-        align-items: flex-start;
-        justify-content: flex-start;
-        margin-bottom: 8px;
-    }
-    </style>
-    """, unsafe_allow_html=True)
