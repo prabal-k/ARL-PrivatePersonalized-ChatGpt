@@ -24,7 +24,7 @@ def initialize_llm():
     llm = CTransformers(
         model="model\original-metallama-6epoch-graphofloss-2.Q4_1.gguf",
         model_type="llama", 
-        config={'max_new_tokens': 110, 'temperature': 0.5, 'context_length': 2990}
+        config={'max_new_tokens': 180, 'temperature': 0.6, 'context_length': 2990}
     )
     return llm
 
@@ -144,7 +144,13 @@ few_shots = [
     'SQLQuery': """SELECT Transaction_details AS Category, SUM(Withdrawal_amount) AS Total_Spending FROM transactions WHERE YEAR(Value_date) = YEAR(CURRENT_DATE()) AND MONTH(Value_date) = MONTH(CURRENT_DATE()) GROUP BY Transaction_details ORDER BY Total_Spending DESC LIMIT 1;""",
     'SQLResult': "[Healthcare, Decimal('10133087.00'))]",
     'Answer': "You spend most money on Healthcare which is Rs 1,01,33,087.00 this month ."
-}
+},
+    {
+        'Question':"How much amount did i earn in last 3 months. ?",
+        'SQLQuery':"""SELECT SUM(Deposit_amount) AS Total_Income FROM transactions WHERE Value_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 3 MONTH) ;""",
+        'SQLResult':"1530205868",
+        'Answer':"You earned Rs 153,02,05,868 in last 3 month ."
+    }
 ]
 
 if os.path.exists(CHROMA_DB_PATH):
@@ -217,7 +223,7 @@ def handle_user_query(user_question):
             print(f"Error occurred: {e}")  # Add this line for debugging
             # Catch any other exceptions and return a generic message
             # st.error("Sorry, I am unable to respond.")
-            return "Sorry, I am unable to respond."
+            return "I was unalbe to answer due to some error. Please try again ."
     else:
         return "Sorry I cannot answer your Question."
 
